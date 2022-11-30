@@ -110,7 +110,7 @@
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
         </config-file>
 
-        <preference name="ANDROID_SUPPORT_V7_VERSION" default="1.5.1"/>
+        <preference name="ANDROID_X_SUPPORT_VERSION" default="1.5.1"/>
         <framework src="androidx.appcompat:appcompat:$ANDROID_X_SUPPORT_VERSION" />
 
         <source-file src="src/android/com/synconset/ImagePicker/ImagePicker.java" target-dir="src/com/synconset" />
