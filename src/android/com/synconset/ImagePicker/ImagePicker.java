@@ -105,16 +105,20 @@ public class ImagePicker extends CordovaPlugin {
     @SuppressLint("InlinedApi")
     private boolean hasReadPermission() {
         return Build.VERSION.SDK_INT < 23 ||
-            PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this.cordova.getActivity(), Manifest.permission.READ_EXTERNAL_STORAGE);
+            PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this.cordova.getActivity(), Manifest.permission.READ_EXTERNAL_STORAGE) || PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this.cordova.getActivity(), Manifest.permission.READ_MEDIA_IMAGES);
     }
 
     @SuppressLint("InlinedApi")
     private void requestReadPermission() {
         if (!hasReadPermission()) {
-            ActivityCompat.requestPermissions(
-                this.cordova.getActivity(),
-                new String[] {Manifest.permission.READ_EXTERNAL_STORAGE},
-                PERMISSION_REQUEST_CODE);
+            if (Build.VERSION.SDK_INT < 33) {
+                ActivityCompat.requestPermissions(
+                    this.cordova.getActivity(),
+                    new String[] {Manifest.permission.READ_EXTERNAL_STORAGE},
+                    PERMISSION_REQUEST_CODE);
+            } else {
+                cordova.requestPermissions(this, PERMISSION_REQUEST_CODE, new String[]{Manifest.permission.READ_MEDIA_IMAGES});
+            }
         }
         // This method executes async and we seem to have no known way to receive the result
         // (that's why these methods were later added to Cordova), so simply returning ok now.
@@ -153,6 +157,43 @@ public class ImagePicker extends CordovaPlugin {
      */
     public void onRestoreStateForActivityResult(Bundle state, CallbackContext callbackContext) {
         this.callbackContext = callbackContext;
+    }
+
+
+
+    //--------------------------------------------------------------------------
+    // LOCAL METHODS
+    //--------------------------------------------------------------------------
+
+    private String[] getPermissions(boolean storageOnly, int mediaType) {
+        ArrayList<String> permissions = new ArrayList<>();
+
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android API 33 and higher
+            switch (mediaType) {
+                case PICTURE:
+                    permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
+                    break;
+                case VIDEO:
+                    permissions.add(Manifest.permission.READ_MEDIA_VIDEO);
+                    break;
+                default:
+                    permissions.add(Manifest.permission.READ_MEDIA_IMAGES);
+                    permissions.add(Manifest.permission.READ_MEDIA_VIDEO);
+                    break;
+            }
+        } else {
+            // Android API 32 or lower
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+            permissions.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }
+
+        if (!storageOnly) {
+            // Add camera permission when not storage.
+            permissions.add(Manifest.permission.CAMERA);
+        }
+
+        return permissions.toArray(new String[0]);
     }
 
 /*
