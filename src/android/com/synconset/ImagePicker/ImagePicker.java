@@ -1,13 +1,13 @@
 package com.synconset;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
 
@@ -21,149 +21,177 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.*;
 import java.util.ArrayList;
 
-public class ImagePicker extends CordovaPlugin {
+import android.os.Bundle;
 
-    private static final String TAG = "ImagePickerPlugin";
-    private static final String ACTION_GET_PICTURES = "getPictures";
-    private static final String ACTION_HAS_READ_PERMISSION = "hasReadPermission";
-    private static final String ACTION_REQUEST_READ_PERMISSION = "requestReadPermission";
-    private static final int PERMISSION_REQUEST_CODE = 100;
+public class ImagePicker extends CordovaPlugin {
+    private static final String TAG = "ImagePicker";
+    private static final int PERMISSION_REQUEST_CODE = 1001;
     private static final int REQUEST_PICK_IMAGE = 1;
-    private static final int REQUEST_MULTI_IMAGE_CHOOSER = 2;
+    private static final int REQUEST_MULTI_PICK = 2;
 
     private CallbackContext callbackContext;
+    private JSONObject params;
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         this.callbackContext = callbackContext;
-
-        switch (action) {
-            case ACTION_HAS_READ_PERMISSION:
-                callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.OK, hasReadPermission()));
-                return true;
-
-            case ACTION_REQUEST_READ_PERMISSION:
-                requestReadPermission();
-                return true;
-
-            case ACTION_GET_PICTURES:
-                return handleGetPictures(args);
-
-            default:
-                return false;
-        }
-    }
-
-    private boolean handleGetPictures(JSONArray args) throws JSONException {
-        if (!hasReadPermission()) {
-            requestReadPermission();
+        if ("getPictures".equals(action)) {
+            params = args.optJSONObject(0);
+            if (!hasGalleryPermissions()) {
+                requestGalleryPermissions();
+            } else {
+                launchPickFlow();
+            }
             return true;
         }
-
-        try {
-            // Use system gallery picker first
-            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-            intent.setType("image/*");
-
-            if (intent.resolveActivity(cordova.getActivity().getPackageManager()) != null) {
-                cordova.startActivityForResult(this, Intent.createChooser(intent, "Select Picture"), REQUEST_PICK_IMAGE);
-            } else {
-                Log.w(TAG, "System image picker not available. Falling back to MultiImageChooserActivity.");
-                fallbackToLegacyPicker(args.getJSONObject(0));
-            }
-
-        } catch (Exception e) {
-            Log.e(TAG, "System picker error: " + e.getMessage() + ", falling back.");
-            fallbackToLegacyPicker(args.getJSONObject(0));
-        }
-
-        return true;
+        return false;
     }
 
-    private void fallbackToLegacyPicker(JSONObject params) throws JSONException {
-        Intent intent = new Intent(cordova.getActivity(), MultiImageChooserActivity.class);
+    private boolean hasGalleryPermissions() {
+        Activity activity = cordova.getActivity();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        return ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
+    }
 
+    private void requestGalleryPermissions() {
+        Activity activity = cordova.getActivity();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            cordova.requestPermissions(this, PERMISSION_REQUEST_CODE,
+                    new String[]{Manifest.permission.READ_MEDIA_IMAGES});
+        } else {
+            ActivityCompat.requestPermissions(activity,
+                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                    PERMISSION_REQUEST_CODE);
+        }
+        callbackContext.success();
+    }
+
+    @Override
+    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                launchPickFlow();
+            } else {
+                callbackContext.error("Permission to access gallery denied");
+            }
+        }
+    }
+
+    private void launchPickFlow() {
+        try {
+            Intent i = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            i.setType("image/*");
+
+            if (i.resolveActivity(cordova.getActivity().getPackageManager()) != null) {
+                cordova.startActivityForResult(this, Intent.createChooser(i, "Select Pictures"), REQUEST_PICK_IMAGE);
+            } else {
+                fallbackToLegacy(params);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "System picker failed: " + e.getMessage());
+            fallbackToLegacy(this.params);
+        }
+    }
+
+    private void fallbackToLegacy(JSONObject params) {
+        Intent intent = new Intent(cordova.getActivity(), MultiImageChooserActivity.class);
         intent.putExtra("MAX_IMAGES", params.optInt("maximumImagesCount", 20));
         intent.putExtra("WIDTH", params.optInt("width", 0));
         intent.putExtra("HEIGHT", params.optInt("height", 0));
         intent.putExtra("QUALITY", params.optInt("quality", 100));
         intent.putExtra("OUTPUT_TYPE", params.optInt("outputType", 0));
-
-        cordova.startActivityForResult(this, intent, REQUEST_MULTI_IMAGE_CHOOSER);
-    }
-
-    @SuppressLint("InlinedApi")
-    private boolean hasReadPermission() {
-        Activity activity = cordova.getActivity();
-        return Build.VERSION.SDK_INT < 23 ||
-                ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    @SuppressLint("InlinedApi")
-    private void requestReadPermission() {
-        Activity activity = cordova.getActivity();
-        if (Build.VERSION.SDK_INT < 33) {
-            ActivityCompat.requestPermissions(activity,
-                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-                    PERMISSION_REQUEST_CODE);
-        } else {
-            cordova.requestPermissions(this, PERMISSION_REQUEST_CODE,
-                    new String[]{Manifest.permission.READ_MEDIA_IMAGES});
-        }
-        callbackContext.success(); // Must re-trigger from JS
+        cordova.startActivityForResult(this, intent, REQUEST_MULTI_PICK);
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
         if (requestCode == REQUEST_PICK_IMAGE) {
-            handleSystemImagePickerResult(resultCode, intent);
-        } else if (requestCode == REQUEST_MULTI_IMAGE_CHOOSER) {
-            handleLegacyPickerResult(resultCode, intent);
+            handleSystemResult(resultCode, intent);
+        } else if (requestCode == REQUEST_MULTI_PICK) {
+            handleLegacyResult(resultCode, intent);
         }
     }
 
-    private void handleSystemImagePickerResult(int resultCode, Intent intent) {
+    private void handleSystemResult(int resultCode, Intent intent) {
         if (resultCode == Activity.RESULT_OK && intent != null) {
-            ArrayList<String> results = new ArrayList<>();
+            JSONArray out = new JSONArray();
             if (intent.getClipData() != null) {
                 int count = intent.getClipData().getItemCount();
                 for (int i = 0; i < count; i++) {
-                    Uri imageUri = intent.getClipData().getItemAt(i).getUri();
-                    results.add(imageUri.toString());
+                    Uri uri = intent.getClipData().getItemAt(i).getUri();
+                    out.put(buildFileInfo(uri));
                 }
             } else if (intent.getData() != null) {
-                results.add(intent.getData().toString());
+                out.put(buildFileInfo(intent.getData()));
             }
-
-            callbackContext.success(new JSONArray(results));
+            callbackContext.success(out);
         } else {
             callbackContext.error("Image picking cancelled or failed");
         }
     }
 
-    private void handleLegacyPickerResult(int resultCode, Intent data) {
-        if (resultCode == Activity.RESULT_OK && data != null) {
-            int sync = data.getIntExtra("bigdata:synccode", -1);
-            final Bundle bigData = ResultIPC.get().getLargeData(sync);
-            ArrayList<String> fileNames = bigData.getStringArrayList("MULTIPLEFILENAMES");
-            callbackContext.success(new JSONArray(fileNames));
-
-        } else if (resultCode == Activity.RESULT_CANCELED && data != null) {
-            callbackContext.error(data.getStringExtra("ERRORMESSAGE"));
-
+    private void handleLegacyResult(int resultCode, Intent intent) {
+        if (resultCode == Activity.RESULT_OK && intent != null) {
+            int sync = intent.getIntExtra("bigdata:synccode", -1);
+            final Bundle big = ResultIPC.get().getLargeData(sync);
+            ArrayList<String> names = big.getStringArrayList("MULTIPLEFILENAMES");
+            JSONArray out = new JSONArray(names);
+            callbackContext.success(out);
         } else if (resultCode == Activity.RESULT_CANCELED) {
             callbackContext.success(new JSONArray());
         } else {
-            callbackContext.error("No images selected");
+            callbackContext.error("Image picking cancelled or failed");
         }
     }
 
-    @Override
-    public void onRestoreStateForActivityResult(Bundle state, CallbackContext callbackContext) {
-        this.callbackContext = callbackContext;
+    private JSONObject buildFileInfo(Uri uri) {
+        JSONObject info = new JSONObject();
+        try {
+            String displayName = "unknown";
+            String copiedPath = null;
+
+            ContentResolver resolver = cordova.getActivity().getContentResolver();
+            String[] proj = { MediaStore.Images.Media.DISPLAY_NAME };
+            try (Cursor cursor = resolver.query(uri, proj, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int ni = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME);
+                    if (ni != -1) displayName = cursor.getString(ni);
+                }
+            }
+
+            copiedPath = copyToCache(uri, displayName);
+
+            info.put("uri", uri.toString());
+            info.put("name", displayName);
+            info.put("path", copiedPath != null ? copiedPath : JSONObject.NULL);
+        } catch (Exception e) {
+            Log.e(TAG, "Error building file info", e);
+        }
+        return info;
+    }
+
+    private String copyToCache(Uri uri, String displayName) {
+        try (InputStream in = cordova.getActivity().getContentResolver().openInputStream(uri)) {
+            if (in == null) return null;
+            File dst = new File(cordova.getActivity().getCacheDir(),
+                    System.currentTimeMillis() + "_" + displayName);
+            try (OutputStream out = new FileOutputStream(dst)) {
+                byte[] buf = new byte[4096];
+                int r;
+                while ((r = in.read(buf)) != -1) out.write(buf, 0, r);
+            }
+            return dst.getAbsolutePath();
+        } catch (IOException e) {
+            Log.e(TAG, "Error copying URI to cache", e);
+            return null;
+        }
     }
 }
