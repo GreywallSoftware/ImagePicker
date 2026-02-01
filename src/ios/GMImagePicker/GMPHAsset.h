@@ -5,7 +5,9 @@
 //  Created by micheladrion on 4/24/15.
 //  Copyright (c) 2015 Guillermo Muntaner Perelló. All rights reserved.
 //
-
+@import Photos;
+@import UIKit;
+#import <objc/runtime.h>
 #define ADD_DYNAMIC_PROPERTY(PROPERTY_TYPE,PROPERTY_NAME,SETTER_NAME) \
 @dynamic PROPERTY_NAME ; \
 static char kProperty##PROPERTY_NAME; \
@@ -18,10 +20,6 @@ return ( PROPERTY_TYPE ) objc_getAssociatedObject(self, &(kProperty##PROPERTY_NA
 { \
 objc_setAssociatedObject(self, &kProperty##PROPERTY_NAME , PROPERTY_NAME , OBJC_ASSOCIATION_RETAIN); \
 } \
-
-#import <objc/runtime.h>
-
-#import <Photos/PHAsset.h>
 
 @interface PHAsset (GMPHAsset)
 
