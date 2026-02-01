@@ -6,7 +6,7 @@
 //  Copyright (c) 2014 Guillermo Muntaner Perelló. All rights reserved.
 //
 
-
+@import UIKit;
 #import <Photos/Photos.h>
 
 #import "GMFetchItem.h"
