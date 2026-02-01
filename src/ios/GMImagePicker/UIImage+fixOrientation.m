@@ -1,3 +1,4 @@
+#import <UIKit/UIKit.h>
 #import "UIImage+fixOrientation.h"
 
 @implementation UIImage (fixOrientation)
@@ -11,5 +12,6 @@
     UIGraphicsEndImageContext();
     return normalizedImage;
 }
+
 
 @end
