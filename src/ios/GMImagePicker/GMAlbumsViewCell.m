@@ -5,7 +5,7 @@
 //  Created by Guillermo Muntaner Perelló on 22/09/14.
 //  Copyright (c) 2014 Guillermo Muntaner Perelló. All rights reserved.
 //
-
+@import UIKit;
 #import "GMAlbumsViewCell.h"
 #import "GMAlbumsViewController.h"
 #import "GMImagePickerController.h"
