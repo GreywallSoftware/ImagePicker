@@ -85,6 +85,8 @@
         <resource-file src="src/ios/GMImagePicker/pl.lproj" />
         <resource-file src="src/ios/GMImagePicker/zh-Hans.lproj" />
 
+        <framework src="UIKit.framework" />
+        <framework src="Photos.framework" />
         <framework src="Accelerate.framework" />
         <framework src="Security.framework" />
         <framework src="Photos.framework" />
