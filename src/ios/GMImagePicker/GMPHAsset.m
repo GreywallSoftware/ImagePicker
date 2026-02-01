@@ -6,7 +6,8 @@
 //  Copyright (c) 2015 Guillermo Muntaner Perelló. All rights reserved.
 //
 
-
+@import Photos;
+@import UIKit;
 #import "GMPHAsset.h"
 
 @implementation PHAsset (GMPHAsset)
