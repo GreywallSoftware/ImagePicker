@@ -7,6 +7,7 @@
 //
 
 //#import "MRCircularProgressView.h"
+@import UIKit;
 #import <Photos/Photos.h>
 #import "FeHourGlass.h"
 
