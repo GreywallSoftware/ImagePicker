@@ -57,6 +57,7 @@ public class ImagePicker extends CordovaPlugin {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // Android 13+: use the system Photo Picker — no READ_MEDIA_IMAGES needed
                 intent = new Intent(MediaStore.ACTION_PICK_IMAGES);
+                intent.setType("image/*");
                 if (max > 1) {
                     intent.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, Math.min(max, MediaStore.getPickImagesMaxLimit()));
                 }
