@@ -110,7 +110,6 @@
 
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
         </config-file>
 
         <preference name="ANDROID_X_SUPPORT_VERSION" default="1.5.1"/>
