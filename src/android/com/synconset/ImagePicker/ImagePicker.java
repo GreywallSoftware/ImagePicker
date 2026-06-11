@@ -92,11 +92,7 @@ public class ImagePicker extends CordovaPlugin {
             for (Uri uri : selectedUris) {
                 String filePath = copyContentToTempFile(uri);
                 if (filePath != null) {
-                    try {
-                        res.put(filePath);
-                    } catch (JSONException e) {
-                        // skip this file
-                    }
+                    res.put(filePath);
                 }
             }
 
